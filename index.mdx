@@ -1,0 +1,44 @@
+---
+title: aCMF
+description: Augmented Cognitive Memory Framework for long-term LLM memory.
+---
+
+# aCMF
+
+aCMF is a long-term memory sidecar for LLM applications.
+
+It is not an agent framework. Your host application calls aCMF before a turn to retrieve grounded context, and after a turn to process durable memory asynchronously.
+
+## What it provides
+
+- Durable scoped memory for many users inside one deployed service
+- Hybrid retrieval across snapshots, vector search, metadata, and graph traversal, with strict query-relevance gating before public output
+- Async post-turn adjudication
+- Hourly snapshot maintenance
+- Contradiction and lineage tracking
+- A dedicated graph projection in Neo4j, with PostgreSQL as the canonical store
+
+## Core model
+
+aCMF stores memory across three scopes:
+
+- `user`
+- `global`
+- optional `container`
+
+Read requests choose how much of that hierarchy to search. Write decisions are made by the Adjudicator during async processing.
+
+## Runtime model
+
+1. Your app calls `/v1/context` before a turn.
+2. Your app calls `/v1/process` after a turn.
+3. aCMF processes the turn asynchronously, stages and commits memory changes, and marks the user snapshot dirty.
+4. Hourly Cortex maintenance reviews memory health and rewrites the latest user snapshot.
+
+## Start here
+
+- [Quickstart](/quickstart)
+- [Environment Reference](/guides/environment-reference)
+- [Architecture Overview](/architecture/overview)
+- [LLM Roles](/architecture/llm-roles)
+- [Provider Configuration](/guides/providers)

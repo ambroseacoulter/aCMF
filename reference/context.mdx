@@ -1,0 +1,124 @@
+---
+title: POST /v1/context
+description: Build prompt-safe grounded context for the next turn.
+---
+
+# POST /v1/context
+
+Returns concise, grounded, pre-turn context for your host application.
+
+## Request body
+
+```json
+{
+  "user_id": "user-123",
+  "message": "Can you help me set up tests for this repo?",
+  "containers": [
+    {
+      "id": "thread-abc",
+      "type": "thread"
+    }
+  ],
+  "scope_level": "user_global_container",
+  "read_mode": "balanced",
+  "budgets": {
+    "max_output_tokens": 400,
+    "max_candidate_memories": 30
+  },
+  "metadata": {
+    "app": "example-host",
+    "trace_id": "trace-002"
+  }
+}
+```
+
+## Request fields
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `user_id` | `string` | Yes | User identity whose memory should be searched. |
+| `message` | `string` | Yes | Current user message used for retrieval and context synthesis. |
+| `containers` | `ContainerHint[]` | No | Optional container hints used when `scope_level` includes container memory. |
+| `scope_level` | `user \| user_global \| user_global_container` | No | Defaults to `user_global`. |
+| `read_mode` | `simple \| balanced \| deep` | No | Defaults to `balanced`. |
+| `budgets` | `RetrievalBudgets` | No | Optional read budget override block. |
+| `metadata` | `RequestMetadata` | No | Optional host metadata. |
+
+### `ContainerHint`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | Container identifier. |
+| `type` | `string \| null` | No | Informational container type. |
+
+### `RetrievalBudgets`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `max_output_tokens` | `integer` | No | Defaults to `400`. Range: `1-4000`. |
+| `max_candidate_memories` | `integer` | No | Defaults to `30`. Range: `1-200`. |
+
+### `RequestMetadata`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `app` | `string \| null` | No | Host application name. |
+| `source` | `string \| null` | No | Source channel name. |
+| `model` | `string \| null` | No | Upstream model identifier. |
+| `trace_id` | `string \| null` | No | Trace or correlation id. |
+
+## Response
+
+```json
+{
+  "status": "ok",
+  "has_usable_context": true,
+  "context_enhancement": "<contextenhancement>...</contextenhancement>",
+  "abstained_reason": null,
+  "diagnostics": {
+    "scope_applied": "user_global_container",
+    "read_mode": "balanced",
+    "user_found": true,
+    "candidate_count": 9,
+    "used_memory_count": 3,
+    "missing_containers": [],
+    "source_breakdown": {
+      "snapshot": 2,
+      "vector": 4,
+      "metadata": 3,
+      "graph": 1
+    },
+    "evidence_strength": 0.78,
+    "warnings": []
+  }
+}
+```
+
+## XML block format
+
+```xml
+<contextenhancement>
+  <scope>user_global_container</scope>
+  <summary>...</summary>
+  <active_context>...</active_context>
+  <confidence_note>Use as supportive context, not unquestionable fact.</confidence_note>
+</contextenhancement>
+```
+
+## Notes
+
+- If the user does not exist, the response returns `not_found`.
+- Missing containers are reported in diagnostics.
+- The endpoint may abstain when evidence is weak or irrelevant.
+- Public diagnostics are relevance-gated. Unrelated raw retrieval hits are kept internal and do not appear in `candidate_count`, `used_memory_count`, or `source_breakdown`.
+- If no relevant memories survive gating, the endpoint short-circuits before the enhancer LLM runs.
+
+## Response field notes
+
+| Field | Type | Always present | Notes |
+| --- | --- | --- | --- |
+| `status` | `string` | Yes | Usually `ok`, or `not_found` when the user does not exist. |
+| `has_usable_context` | `boolean` | Yes | `false` when aCMF abstains. |
+| `context_enhancement` | `string` | Yes | XML block when context is usable, otherwise an empty string. |
+| `abstained_reason` | `string \| null` | Yes | Set when aCMF declines to inject context. |
+| `diagnostics` | `RetrievalDiagnostics` | Yes | Retrieval summary for the request. |

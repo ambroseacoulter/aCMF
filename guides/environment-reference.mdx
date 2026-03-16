@@ -1,0 +1,123 @@
+---
+title: Environment Reference
+description: Every `ACMF_` environment variable, what it controls, and whether it is required.
+---
+
+# Environment Reference
+
+All runtime settings are loaded from `.env` with the `ACMF_` prefix.
+
+The checked-in [.env.example](/Users/ambrose/aCMF/.env.example) uses `stub` providers by default, so no external model credentials are required for local startup.
+
+## How to read "Required"
+
+- `Always`: set this in any non-trivial deployment.
+- `Required if ...`: only mandatory when that condition is true.
+- `Optional`: has a safe default.
+
+## Core runtime
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_ENV` | Runtime environment name. `test` also switches some defaults to stub providers. | Optional | `development` |
+| `ACMF_DEBUG` | Enables debug-oriented behavior. | Optional | `true` |
+| `ACMF_HOST` | FastAPI bind host. | Optional | `0.0.0.0` |
+| `ACMF_PORT` | FastAPI bind port. | Optional | `8000` |
+| `ACMF_DATABASE_URL` | PostgreSQL connection string. | Always | `postgresql+psycopg://acmf:acmf@postgres:5432/acmf` in Docker example |
+| `ACMF_REDIS_URL` | Redis URL for Celery broker and result backend. | Always | `redis://redis:6379/0` in Docker example |
+| `ACMF_NEO4J_URI` | Neo4j Bolt URI for graph projection and graph reads. | Always | `bolt://neo4j:7687` in Docker example |
+| `ACMF_NEO4J_USERNAME` | Neo4j username. | Always | `neo4j` |
+| `ACMF_NEO4J_PASSWORD` | Neo4j password. | Always | `acmfpassword` |
+
+## Global OpenAI-compatible defaults
+
+These are fallback values for any role that does not define its own override.
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_OPENAI_DEFAULT_BASE_URL` | Default base URL for chat and embedding providers. | Required if any role uses `openai_compatible` and does not override its own base URL | `https://api.openai.com/v1` |
+| `ACMF_OPENAI_DEFAULT_API_KEY` | Default API key fallback for any role using `openai_compatible`. | Required if any role uses `openai_compatible` and does not override its own API key | empty |
+| `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` | Default request timeout fallback for OpenAI-compatible roles. | Optional | `30` |
+
+## Adjudicator role
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_ADJUDICATOR_PROVIDER` | Provider kind for post-turn adjudication. `stub` or `openai_compatible`. | Optional | `stub` in `.env.example`, app default is `openai_compatible` outside tests |
+| `ACMF_ADJUDICATOR_BASE_URL` | Role-specific override for the adjudicator base URL. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` and no global default base URL is set | empty |
+| `ACMF_ADJUDICATOR_API_KEY` | Role-specific override for adjudicator credentials. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` and no global default API key is set | empty |
+| `ACMF_ADJUDICATOR_MODEL` | Model name used by the adjudicator role. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
+| `ACMF_ADJUDICATOR_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+
+## Context Enhancer role
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_CONTEXT_ENHANCER_PROVIDER` | Provider kind for `/v1/context` and `/v1/deep-memory` synthesis. | Optional | `stub` in `.env.example` |
+| `ACMF_CONTEXT_ENHANCER_BASE_URL` | Role-specific override for context enhancement requests. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` and no global default base URL is set | empty |
+| `ACMF_CONTEXT_ENHANCER_API_KEY` | Role-specific override for context enhancement credentials. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` and no global default API key is set | empty |
+| `ACMF_CONTEXT_ENHANCER_MODEL` | Model name used for context and deep-memory synthesis. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
+| `ACMF_CONTEXT_ENHANCER_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+
+## Cortex role
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_CORTEX_PROVIDER` | Provider kind for Cortex review and snapshot summarization. | Optional | `stub` in `.env.example` |
+| `ACMF_CORTEX_BASE_URL` | Role-specific override for Cortex requests. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` and no global default base URL is set | empty |
+| `ACMF_CORTEX_API_KEY` | Role-specific override for Cortex credentials. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` and no global default API key is set | empty |
+| `ACMF_CORTEX_MODEL` | Model name used by the Cortex role. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
+| `ACMF_CORTEX_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+
+## Embeddings role
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_EMBEDDING_PROVIDER` | Provider kind for embedding generation. | Optional | `stub` in `.env.example` |
+| `ACMF_EMBEDDING_BASE_URL` | Role-specific override for embedding requests. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` and no global default base URL is set | empty |
+| `ACMF_EMBEDDING_API_KEY` | Role-specific override for embedding credentials. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` and no global default API key is set | empty |
+| `ACMF_EMBEDDING_MODEL` | Embedding model name. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` | `text-embedding-3-small` |
+| `ACMF_EMBEDDING_DIMENSIONS` | Expected embedding width for the configured model. | Required if embeddings are enabled | `1536` |
+| `ACMF_EMBEDDING_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+
+## Read-path tuning
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_CONTEXT_MAX_OUTPUT_TOKENS` | Default output budget for `/v1/context`. | Optional | `400` |
+| `ACMF_DEEP_MEMORY_MAX_OUTPUT_TOKENS` | Default output budget for `/v1/deep-memory`. | Optional | `500` |
+| `ACMF_CONTEXT_DEFAULT_CANDIDATE_LIMIT` | Default candidate budget for context-style reads. | Optional | `30` |
+| `ACMF_DEEP_MEMORY_DEFAULT_CANDIDATE_LIMIT` | Default candidate budget for deep-memory reads. | Optional | `40` |
+| `ACMF_SIMPLE_CANDIDATE_LIMIT` | Max final candidates for `simple` reads. | Optional | `10` |
+| `ACMF_BALANCED_CANDIDATE_LIMIT` | Max final candidates for `balanced` reads. | Optional | `30` |
+| `ACMF_DEEP_CANDIDATE_LIMIT` | Max final candidates for `deep` reads. | Optional | `50` |
+| `ACMF_SIMPLE_GRAPH_LIMIT` | Graph traversal limit for `simple` reads. | Optional | `5` |
+| `ACMF_BALANCED_GRAPH_LIMIT` | Graph traversal limit for `balanced` reads. | Optional | `10` |
+| `ACMF_DEEP_GRAPH_LIMIT` | Graph traversal limit for `deep` reads. | Optional | `20` |
+| `ACMF_QUERY_TEXT_RELEVANCE_THRESHOLD` | Minimum lexical relevance for a memory to remain public in read responses. | Optional | `0.25` |
+| `ACMF_QUERY_VECTOR_SIMILARITY_THRESHOLD` | Minimum vector similarity for a raw vector hit to remain public. | Optional | `0.78` |
+| `ACMF_GRAPH_QUERY_RELEVANCE_THRESHOLD` | Minimum graph-text relevance for graph-expanded memories to remain public. | Optional | `0.2` |
+| `ACMF_EVIDENCE_ABSTAIN_THRESHOLD` | Minimum evidence strength before a deep-memory answer is allowed. | Optional | `0.45` |
+
+## Background processing
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_CELERY_TASK_ALWAYS_EAGER` | Runs Celery tasks inline for tests or local debugging. | Optional | `false` |
+| `ACMF_GRAPH_PROJECTION_BATCH_SIZE` | Max outbox events processed per graph sync batch. | Optional | `100` |
+| `ACMF_GRAPH_PROJECTION_MAX_ATTEMPTS` | Max projection retries before an outbox event is marked failed. | Optional | `5` |
+| `ACMF_GRAPH_PROJECTION_RETRY_BACKOFF_SECONDS` | Backoff window used by the periodic graph retry path. | Optional | `300` |
+
+## Practical defaults
+
+- Local deterministic development:
+  - keep all provider vars on `stub`
+  - keep Docker service URLs from `.env.example`
+- Real model providers:
+  - set each `*_PROVIDER=openai_compatible`
+  - supply either the role-specific `BASE_URL` and `API_KEY`, or the shared global defaults
+- If you change `.env`, recreate the affected containers:
+
+```bash
+docker compose up -d --force-recreate api worker beat
+```

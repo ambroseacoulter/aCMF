@@ -1,0 +1,125 @@
+---
+title: POST /v1/deep-memory
+description: Answer a grounded memory query with explicit evidence and abstention.
+---
+
+# POST /v1/deep-memory
+
+Uses the full retrieval pipeline to answer a focused memory question.
+
+## Request body
+
+```json
+{
+  "user_id": "user-123",
+  "query": "What testing framework does this user prefer?",
+  "containers": [
+    {
+      "id": "thread-abc",
+      "type": "thread"
+    }
+  ],
+  "scope_level": "user_global_container",
+  "read_mode": "deep",
+  "budgets": {
+    "max_output_tokens": 500,
+    "max_candidate_memories": 40
+  },
+  "metadata": {
+    "trace_id": "trace-003"
+  }
+}
+```
+
+## Request fields
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `user_id` | `string` | Yes | User identity whose memory should be searched. |
+| `query` | `string` | Yes | Focused memory question. |
+| `containers` | `ContainerHint[]` | No | Optional container hints used when `scope_level` includes container memory. |
+| `scope_level` | `user \| user_global \| user_global_container` | No | Defaults to `user_global`. |
+| `read_mode` | `simple \| balanced \| deep` | No | Defaults to `balanced`, though `deep` is typical here. |
+| `budgets` | `RetrievalBudgets` | No | Defaults to `max_output_tokens=500` and `max_candidate_memories=40` for this endpoint. |
+| `metadata` | `RequestMetadata` | No | Optional host metadata. |
+
+### `ContainerHint`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | Container identifier. |
+| `type` | `string \| null` | No | Informational container type. |
+
+### `RetrievalBudgets`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `max_output_tokens` | `integer` | No | Defaults to `500`. Range: `1-4000`. |
+| `max_candidate_memories` | `integer` | No | Defaults to `40`. Range: `1-200`. |
+
+### `RequestMetadata`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `app` | `string \| null` | No | Host application name. |
+| `source` | `string \| null` | No | Source channel name. |
+| `model` | `string \| null` | No | Upstream model identifier. |
+| `trace_id` | `string \| null` | No | Trace or correlation id. |
+
+## Response
+
+```json
+{
+  "status": "ok",
+  "answer": "Based on stored memory, the user prefers pytest over unittest.",
+  "abstained": false,
+  "abstained_reason": null,
+  "used_memory_count": 1,
+  "diagnostics": {
+    "scope_applied": "user_global_container",
+    "read_mode": "deep",
+    "user_found": true,
+    "candidate_count": 12,
+    "used_memory_count": 1,
+    "missing_containers": [],
+    "source_breakdown": {
+      "snapshot": 2,
+      "vector": 5,
+      "metadata": 4,
+      "graph": 1
+    },
+    "evidence_strength": 0.82,
+    "warnings": []
+  },
+  "evidence": [
+    {
+      "memory_id": "mem-123",
+      "scope_type": "user",
+      "bucket_id": null,
+      "relevance": 0.88,
+      "support": 0.91,
+      "relation_refs": [],
+      "entity_refs": []
+    }
+  ]
+}
+```
+
+## Notes
+
+- The endpoint must stay grounded in retrieved evidence.
+- If evidence is weak or conflicting, it may abstain.
+- `evidence` references the memories used to support the answer.
+- Public diagnostics are relevance-gated. If no relevant memory survives filtering, the endpoint abstains directly instead of exposing unrelated scoped memories.
+
+## Response field notes
+
+| Field | Type | Always present | Notes |
+| --- | --- | --- | --- |
+| `status` | `string` | Yes | Usually `ok`, or `not_found` when the user does not exist. |
+| `answer` | `string` | Yes | Grounded answer, or a fallback abstention answer when evidence is insufficient. |
+| `abstained` | `boolean` | Yes | Whether aCMF declined to answer confidently. |
+| `abstained_reason` | `string \| null` | Yes | Explains abstention when present. |
+| `used_memory_count` | `integer` | Yes | Number of memories actually used in the final answer. |
+| `diagnostics` | `RetrievalDiagnostics` | Yes | Retrieval summary for the request. |
+| `evidence` | `EvidenceItem[]` | Yes | Explicit grounding evidence for the answer. |

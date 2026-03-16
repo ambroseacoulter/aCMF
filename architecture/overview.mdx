@@ -1,0 +1,77 @@
+---
+title: Architecture Overview
+description: Canonical data flow, storage model, and high-level service decomposition.
+---
+
+# Architecture Overview
+
+## Canonical stores
+
+- PostgreSQL is the system of record.
+- pgvector stores memory embeddings.
+- Redis backs Celery.
+- Neo4j is a graph projection for traversal-heavy reads.
+
+Neo4j is not the write source of truth. All canonical memory and graph mutations are written to PostgreSQL first.
+
+## Main subsystems
+
+- `app/api`
+  - FastAPI routes and schema validation
+- `app/storage`
+  - repository layer around canonical persistence
+- `app/services`
+  - memory commit logic, embeddings, scoring, relevance, staged tool sessions
+- `app/retrieval`
+  - scope resolution, vector search, reranking
+- `app/llms`
+  - role prompts, provider clients, role orchestration
+- `app/engines`
+  - end-to-end orchestration for process, retrieval, graph, snapshots, and maintenance
+- `app/workers`
+  - Celery tasks and schedules
+
+## High-level flow
+
+### Pre-turn reads
+
+`/v1/context` and `/v1/deep-memory` use the same retrieval pipeline:
+
+1. resolve scope
+2. load snapshot refs when relevant
+3. run vector search
+4. load high-signal metadata candidates
+5. apply strict query-relevance gating
+6. expand graph context from Neo4j using relevant memory seeds only
+7. rerank deterministically
+8. call the Context Enhancer or Deep Memory role only if relevant evidence remains
+
+### Post-turn writes
+
+`/v1/process` is intentionally thin:
+
+1. create user if missing
+2. create containers if missing
+3. create a job
+4. return immediately
+
+The background worker then:
+
+1. stores the normalized turn
+2. gathers nearby memory and graph context
+3. runs the Adjudicator tool loop
+4. validates staged operations
+5. commits memory and graph updates atomically
+6. refreshes embeddings
+7. updates relevance for touched memory
+8. marks the snapshot dirty
+
+### Hourly maintenance
+
+The hourly Cortex flow is mostly programmatic:
+
+1. recompute decay and effective relevance
+2. build maintenance proposals
+3. send those proposals to Cortex for staged review
+4. validate and commit approved changes
+5. generate the latest user/global snapshot summary

@@ -1,0 +1,47 @@
+---
+title: GET /v1/snapshot/{user_id}
+description: Retrieve the latest hourly user/global snapshot.
+---
+
+# GET /v1/snapshot/{user_id}
+
+Returns the latest hourly snapshot for a user.
+
+## Path parameters
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `user_id` | `string` | Yes | User identity whose latest snapshot should be returned. |
+
+## Response
+
+```json
+{
+  "status": "ok",
+  "user_id": "user-123",
+  "generated_at": "2026-03-16T10:00:00.000000",
+  "snapshot": {
+    "summary": "The user prefers pytest, is working on repository X, and has an active goal to improve automated testing coverage.",
+    "memory_refs": [
+      "mem-123",
+      "mem-456"
+    ],
+    "health_note": "No major contradiction clusters affected the selected snapshot."
+  }
+}
+```
+
+## Notes
+
+- Snapshots include only `user` and `global` memories.
+- Container-only memories are excluded.
+- The latest snapshot is overwritten during hourly maintenance.
+
+## Response field notes
+
+| Field | Type | Always present | Notes |
+| --- | --- | --- | --- |
+| `status` | `string` | Yes | Usually `ok`. |
+| `user_id` | `string` | Yes | Echoes the requested user id. |
+| `generated_at` | `datetime \| null` | Yes | Null when no snapshot exists yet. |
+| `snapshot` | `SnapshotPayload \| null` | Yes | Null when no snapshot exists yet. |

@@ -1,0 +1,107 @@
+---
+title: POST /v1/process
+description: Queue async post-turn memory adjudication.
+---
+
+# POST /v1/process
+
+Queues post-turn memory processing and returns immediately.
+
+## Request body
+
+```json
+{
+  "user_id": "user-123",
+  "containers": [
+    {
+      "id": "thread-abc",
+      "type": "thread"
+    }
+  ],
+  "scope_policy": {
+    "write_user": "auto",
+    "write_global": "auto",
+    "write_container": true
+  },
+  "turn": {
+    "user_message": "Remember that I prefer pytest over unittest.",
+    "assistant_response": "Understood. I'll keep that in mind.",
+    "occurred_at": "2026-03-16T10:00:00Z",
+    "user_message_id": "msg-u-1",
+    "assistant_message_id": "msg-a-1"
+  },
+  "metadata": {
+    "app": "example-host",
+    "source": "chat",
+    "model": "gpt-4.1-mini",
+    "trace_id": "trace-001"
+  }
+}
+```
+
+## Request fields
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `user_id` | `string` | Yes | User identity for the turn. |
+| `containers` | `ContainerHint[]` | No | Optional scope buckets. Missing containers are created automatically. |
+| `scope_policy` | `ScopePolicy` | No | Write policy override block. Defaults are applied if omitted. |
+| `turn` | `TurnEnvelope` | Yes | The completed user and assistant messages. |
+| `metadata` | `RequestMetadata` | No | Host app metadata for tracing and provenance. |
+
+### `ContainerHint`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | Container identifier. |
+| `type` | `string \| null` | No | Informational container type such as `thread` or `project`. |
+
+### `ScopePolicy`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `write_user` | `auto \| true \| false` | No | Defaults to `auto`. |
+| `write_global` | `auto \| true \| false` | No | Defaults to `auto`. |
+| `write_container` | `boolean` | No | Defaults to `true`. |
+
+### `TurnEnvelope`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `user_message` | `string` | Yes | Raw user message for the processed turn. |
+| `assistant_response` | `string` | Yes | Assistant message that followed the user message. |
+| `occurred_at` | `datetime \| null` | No | Optional source timestamp for the turn. |
+| `user_message_id` | `string \| null` | No | Optional upstream message id. |
+| `assistant_message_id` | `string \| null` | No | Optional upstream message id. |
+
+### `RequestMetadata`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `app` | `string \| null` | No | Host application name. |
+| `source` | `string \| null` | No | Source channel such as `chat`. |
+| `model` | `string \| null` | No | Upstream model identifier if relevant. |
+| `trace_id` | `string \| null` | No | Trace or correlation id. |
+
+## Response
+
+```json
+{
+  "status": "accepted",
+  "job_id": "3d8581a7-f102-4f45-8a77-fdcb16022c50",
+  "created_user": true,
+  "created_containers": [
+    "thread-abc"
+  ],
+  "accepted_at": "2026-03-16T10:00:00.000000"
+}
+```
+
+## Behavior
+
+- creates the user if missing
+- creates missing containers
+- stores a background job
+- returns immediately
+
+The actual turn adjudication happens asynchronously in the Celery worker.

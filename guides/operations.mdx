@@ -1,0 +1,91 @@
+---
+title: Operations
+description: Running aCMF in development, worker schedules, and practical maintenance notes.
+---
+
+# Operations
+
+## Services in Docker Compose
+
+The default `docker-compose.yml` starts:
+
+- `api`
+- `worker`
+- `beat`
+- `postgres`
+- `redis`
+- `neo4j`
+
+It reads configuration from `.env`.
+
+Container startup also waits for Postgres and runs Alembic automatically before launching the service process.
+
+## Ports
+
+- API: `8000`
+- Postgres: `5432`
+- Redis: `6379`
+- Neo4j HTTP: `7474`
+- Neo4j Bolt: `7687`
+
+## Celery schedules
+
+The Celery beat schedule includes:
+
+- `hourly_cortex`
+  - every hour at minute `0`
+- `sync_graph_projection`
+  - every `300` seconds
+
+## Graph projection behavior
+
+Canonical graph mutations are written to PostgreSQL and recorded in the outbox.
+
+After the canonical commit succeeds, aCMF immediately dispatches an async graph projection task for the newly created outbox events.
+
+The graph sync worker then projects:
+
+- memory nodes
+- entities
+- relations
+- memory links
+- general graph edges
+
+into Neo4j.
+
+Beat still runs the periodic sync as a backlog drain and retry path. Canonical writes do not depend on Neo4j being current.
+
+## Tests
+
+Run:
+
+```bash
+python3 -m pytest
+```
+
+## Process smoke test
+
+To send 10 varied `/v1/process` requests against a running API:
+
+```bash
+python3 scripts/process_smoke_test.py --base-url http://localhost:8000 --pretty
+```
+
+Useful flags:
+
+- `--prefix demo` to avoid reusing the default ids
+- `--timeout 30` to increase request timeout
+
+## Useful sanity check
+
+```bash
+python3 -c 'from app.main import app; print(app.title, app.version)'
+```
+
+## Important current behavior
+
+- `/v1/process` returns immediately after enqueuing.
+- Read paths can abstain when evidence is weak or irrelevant.
+- Read-path diagnostics are relevance-gated and do not expose unrelated raw retrieval hits.
+- Snapshots only include `user` and `global` memories.
+- Neo4j is projection-only and can be rebuilt from canonical state.

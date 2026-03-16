@@ -1,0 +1,120 @@
+---
+title: Provider Configuration
+description: Configure OpenAI-compatible providers independently for each aCMF role.
+---
+
+# Provider Configuration
+
+aCMF supports separate OpenAI-compatible providers for:
+
+- Adjudicator
+- Context Enhancer
+- Cortex
+- Embeddings
+
+## Provider kinds
+
+- `openai_compatible`
+- `stub`
+
+`stub` is useful for tests and local development. `openai_compatible` expects a standard OpenAI-style API with `base_url`, API key, and model name.
+
+For a complete field-by-field environment reference, including which variables are required and when, see [Environment Reference](/guides/environment-reference).
+
+## Recommended models
+
+| Role | Recommended models |
+| --- | --- |
+| Adjudicator | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `inception/mercury-2` for fast token speed |
+| Cortex | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Embedding | `openai/text-embedding-3-large` or `openai/text-embedding-3-small` |
+
+Recommended starting point:
+
+- use `openai/gpt-5.4` for adjudicator, context enhancer, and cortex if you want one consistent default
+- use `inception/mercury-2` only for the Context Enhancer if you want faster token speed on read-time synthesis
+- use `openai/text-embedding-3-large` when retrieval quality matters most, or `openai/text-embedding-3-small` when cost and vector size matter more
+
+## Resolution rules
+
+- Each role first reads its own `PROVIDER`, `BASE_URL`, `API_KEY`, `MODEL`, and `TIMEOUT_SECONDS`.
+- If a role does not define `BASE_URL`, `API_KEY`, or `TIMEOUT_SECONDS`, aCMF falls back to the global OpenAI-compatible defaults.
+- If a role is set to `stub`, network credentials are not required for that role.
+
+## Global defaults
+
+These settings are shared when a role does not define its own override:
+
+```env
+ACMF_OPENAI_DEFAULT_BASE_URL=https://api.openai.com/v1
+ACMF_OPENAI_DEFAULT_API_KEY=
+ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS=30
+```
+
+## Adjudicator
+
+```env
+ACMF_ADJUDICATOR_PROVIDER=openai_compatible
+ACMF_ADJUDICATOR_BASE_URL=
+ACMF_ADJUDICATOR_API_KEY=
+ACMF_ADJUDICATOR_MODEL=openai/gpt-5.4
+ACMF_ADJUDICATOR_TIMEOUT_SECONDS=
+```
+
+## Context Enhancer
+
+```env
+ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible
+ACMF_CONTEXT_ENHANCER_BASE_URL=
+ACMF_CONTEXT_ENHANCER_API_KEY=
+ACMF_CONTEXT_ENHANCER_MODEL=openai/gpt-5.4
+ACMF_CONTEXT_ENHANCER_TIMEOUT_SECONDS=
+```
+
+## Cortex
+
+```env
+ACMF_CORTEX_PROVIDER=openai_compatible
+ACMF_CORTEX_BASE_URL=
+ACMF_CORTEX_API_KEY=
+ACMF_CORTEX_MODEL=openai/gpt-5.4
+ACMF_CORTEX_TIMEOUT_SECONDS=
+```
+
+## Embeddings
+
+```env
+ACMF_EMBEDDING_PROVIDER=openai_compatible
+ACMF_EMBEDDING_BASE_URL=
+ACMF_EMBEDDING_API_KEY=
+ACMF_EMBEDDING_MODEL=openai/text-embedding-3-large
+ACMF_EMBEDDING_DIMENSIONS=3072
+ACMF_EMBEDDING_TIMEOUT_SECONDS=
+```
+
+## Example mixed setup
+
+```env
+ACMF_OPENAI_DEFAULT_BASE_URL=https://api.openai.com/v1
+ACMF_OPENAI_DEFAULT_API_KEY=sk-default
+
+ACMF_ADJUDICATOR_PROVIDER=openai_compatible
+ACMF_ADJUDICATOR_MODEL=openai/gpt-5.4
+
+ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible
+ACMF_CONTEXT_ENHANCER_BASE_URL=https://my-router.example/v1
+ACMF_CONTEXT_ENHANCER_API_KEY=router-key
+ACMF_CONTEXT_ENHANCER_MODEL=inception/mercury-2
+
+ACMF_CORTEX_PROVIDER=openai_compatible
+ACMF_CORTEX_MODEL=google/gemini-3.1-flash-lite-preview
+
+ACMF_EMBEDDING_PROVIDER=openai_compatible
+ACMF_EMBEDDING_MODEL=openai/text-embedding-3-large
+ACMF_EMBEDDING_DIMENSIONS=3072
+```
+
+## Recommendation
+
+Keep providers independent, but start by using the same endpoint for all roles unless you have a clear routing reason not to. The important boundary is that each role can choose its own model and credentials when needed.

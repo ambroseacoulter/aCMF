@@ -1,0 +1,75 @@
+---
+title: LLM Roles
+description: Adjudicator, Context Enhancer, Deep Memory, and Cortex responsibilities.
+---
+
+# LLM Roles
+
+## Adjudicator
+
+The Adjudicator runs only in post-turn async processing.
+
+Its job is to inspect the current turn and decide what durable memory, if any, should be stored.
+
+### How it works
+
+- It receives the completed turn plus nearby memories, graph facts, contradiction context, and lineage context.
+- It can investigate through tools before deciding what to stage.
+- It stages operations one at a time instead of returning one giant mutation object.
+- The application validates the staged ledger before any canonical writes happen.
+
+### Available investigation tools
+
+- semantic memory search
+- metadata search
+- contradiction group lookup
+- lineage lookup
+- graph lookup
+- fetch memory by id
+
+### Available staged write tools
+
+- `stage_create_memory`
+- `stage_update_memory`
+- `stage_merge_memory`
+- `stage_mark_contradiction`
+- `stage_create_entity`
+- `stage_create_relation`
+- `stage_link_memory_entity`
+- `finalize_adjudication`
+
+## Context Enhancer
+
+The Context Enhancer runs on `/v1/context`.
+
+It does not search itself. The application performs retrieval first, then passes the evidence set plus the current message to the LLM.
+
+It must:
+
+- stay grounded in retrieved evidence only
+- produce a concise XML context block
+- never surface unrelated memories as usable context
+- abstain when evidence is weak or irrelevant
+
+## Deep Memory
+
+Deep Memory uses the same retrieval engine but answers a focused memory question.
+
+It must:
+
+- remain grounded in retrieved memory only
+- report uncertainty when evidence is partial or conflicting
+- short-circuit to abstention when no relevant evidence survives retrieval gating
+- abstain instead of hallucinating
+
+## Cortex
+
+Cortex is not the primary maintenance engine. The codebase computes most maintenance proposals programmatically.
+
+Cortex is used for:
+
+- reviewing the proposal bundle through staged tools
+- approving, skipping, or adjusting maintenance actions
+- writing the final hourly snapshot summary
+
+This keeps maintenance predictable while still allowing LLM judgment where heuristics are not enough.

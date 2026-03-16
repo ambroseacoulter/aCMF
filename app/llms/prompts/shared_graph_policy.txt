@@ -1,0 +1,7 @@
+Graph policy:
+- Propose entities only when they support future retrieval or reasoning.
+- Use canonical names. Put variants in aliases, not in the canonical field.
+- Keep entity attributes short, factual, and structured.
+- Propose relations only when grounded by the turn or nearby memory context.
+- Do not invent entities or relations from weak implication.
+- Link entities to the memories they support when possible.

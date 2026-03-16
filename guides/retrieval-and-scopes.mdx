@@ -1,0 +1,82 @@
+---
+title: Retrieval and Scopes
+description: Scope resolution, read modes, and how candidate retrieval works.
+---
+
+# Retrieval and Scopes
+
+## Scope hierarchy
+
+aCMF works with three storage scopes:
+
+- `user`
+- `global`
+- optional `container`
+
+## Read scope levels
+
+The API supports:
+
+- `user`
+- `user_global`
+- `user_global_container`
+
+These are read-time combinations, not storage scopes themselves.
+
+## Read modes
+
+### `simple`
+
+- smallest candidate pool
+- shallow graph expansion from already relevant memory seeds
+- lowest latency
+
+### `balanced`
+
+- default path
+- hybrid vector, metadata, snapshot, and graph retrieval
+- strict query-relevance gating before anything is exposed publicly
+
+### `deep`
+
+- largest candidate pool
+- broader seeded graph expansion
+- stronger abstention behavior
+
+## Retrieval sources
+
+The read engine can pull from:
+
+- latest snapshot references
+- pgvector similarity search
+- high-signal metadata retrieval
+- Neo4j graph traversal
+- contradiction summaries
+- lineage summaries
+
+These sources are not exposed directly. The read path now works like this:
+
+1. gather raw scoped candidates
+2. score each candidate against the current query
+3. drop unrelated candidates before prompt construction
+4. expand graph context only from relevant memory seeds
+5. rerank the remaining relevant candidates
+6. either call the LLM or abstain directly if nothing relevant remains
+
+This means unrelated memories are allowed to exist in scope, but they do not leak into public diagnostics or abstention messages.
+
+## Public diagnostics
+
+`/v1/context` and `/v1/deep-memory` diagnostics are relevance-gated:
+
+- `candidate_count` is the number of post-filter relevant memories
+- `used_memory_count` is the number of memories actually used in synthesis
+- `source_breakdown` only counts sources that contributed relevant memories
+
+Raw retrieval counts remain internal only for logging and debugging.
+
+## Why snapshots matter
+
+Snapshots are not the only read source. They are just one retrieval input.
+
+The full memory corpus can still be searched at read time, especially in `balanced` and `deep` modes.

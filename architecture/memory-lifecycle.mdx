@@ -1,0 +1,76 @@
+---
+title: Memory Lifecycle
+description: How memories are created, updated, contradicted, ranked, and snapshot-selected.
+---
+
+# Memory Lifecycle
+
+## Creation
+
+New memories are created only after the Adjudicator stages and finalizes a valid operation set.
+
+Each persisted memory includes:
+
+- `user_id`
+- `scope_type`
+- optional `bucket_id`
+- type, content, summary, rationale, evidence
+- scoring fields
+- source provenance
+
+## Update and merge
+
+The Adjudicator can decide that a new claim should:
+
+- create a new memory
+- update an existing memory
+- merge into an existing memory
+- remain visible as a contradiction
+- be discarded
+
+Merges and supersession are tracked through lineage events.
+
+## Contradictions
+
+Competing claims are tracked through contradiction groups and contradiction items.
+
+This prevents silent overwrites when a fact is unstable, contested, or not yet resolved.
+
+## Relevance updates
+
+Whenever memory is touched during read or maintenance flows, aCMF updates:
+
+- `recall_count`
+- `last_recalled_at`
+- `current_relevance_score`
+- `average_relevance_score`
+
+## Decay and status
+
+Memories are scored for decay over time and may move through:
+
+- `active`
+- `warm`
+- `stale`
+- `archived`
+
+Other states include:
+
+- `duplicate`
+- `superseded`
+- `conflicted`
+
+## Snapshot selection
+
+Snapshots are built per user and include only `user` and `global` memories.
+
+Container-only memories are excluded by design.
+
+The snapshot path favors:
+
+- importance
+- confidence
+- relevance
+- recency
+- memory health
+

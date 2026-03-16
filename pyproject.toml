@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.24.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "acmf"
+version = "0.1.0"
+description = "Augmented Cognitive Memory Framework MVP"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+  { name = "Ambrose" }
+]
+dependencies = [
+  "alembic>=1.14.1",
+  "celery[redis]>=5.4.0",
+  "eval-type-backport>=0.2.2",
+  "fastapi>=0.115.6",
+  "httpx>=0.28.1",
+  "neo4j>=5.27.0",
+  "openai>=1.58.1",
+  "pgvector>=0.3.6",
+  "psycopg[binary]>=3.2.3",
+  "pydantic-settings>=2.7.1",
+  "python-dotenv>=1.0.1",
+  "sqlalchemy>=2.0.36",
+  "structlog>=24.4.0",
+  "uvicorn>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "S", "C4"]
+ignore = ["B008"]

@@ -1,0 +1,227 @@
+---
+title: Quickstart
+description: Run aCMF locally with Docker, migrations, and stub or OpenAI-compatible providers.
+---
+
+# Quickstart
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Python 3.9+ if you want to run commands on the host
+
+## 1. Create your environment file
+
+```bash
+cp .env.example .env
+```
+
+The checked-in example uses `stub` providers by default, which makes local startup deterministic and avoids external API calls.
+
+For a full explanation of every environment variable, including whether it is required, see [Environment Reference](/guides/environment-reference).
+
+## Recommended models
+
+When you switch from `stub` to real OpenAI-compatible providers, these are the recommended models:
+
+| Role | Recommended models |
+| --- | --- |
+| Adjudicator | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `inception/mercury-2` for fast token speed |
+| Cortex | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Embedding | `openai/text-embedding-3-large` or `openai/text-embedding-3-small` |
+
+Recommended default setup:
+
+- Adjudicator: `openai/gpt-5.4`
+- Context Enhancer: `openai/gpt-5.4`
+- Cortex: `openai/gpt-5.4`
+- Embedding: `openai/text-embedding-3-large`
+
+If you want a faster context-only setup, use `inception/mercury-2` for the Context Enhancer and keep the other roles unchanged.
+
+## 2. Start the stack
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- API
+- Celery worker
+- Celery beat
+- PostgreSQL with pgvector
+- Redis
+- Neo4j
+
+## 3. Automatic migrations in Docker
+
+Container startup now waits for Postgres and runs:
+
+```bash
+alembic upgrade head
+```
+
+automatically before launching the API, worker, or beat process.
+
+## 4. Automatic migrations outside Docker
+
+If you start the API, worker, or beat directly, aCMF now applies pending Alembic migrations automatically during process startup there as well.
+
+Manual Alembic usage is still available if you want it:
+
+```bash
+python3 -m pip install -e ".[dev]"
+alembic upgrade head
+```
+
+## 5. Verify the service
+
+API:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## 6. Try the basic flow
+
+Create a user and enqueue post-turn processing:
+
+```jsonc
+{
+  "user_id": "user-123", // Required
+  "containers": [
+    {
+      "id": "thread-abc", // Required when a container is supplied
+      "type": "thread" // Optional: informational container type
+    }
+  ], // Optional
+  "scope_policy": {
+    "write_user": "auto", // Optional
+    "write_global": "auto", // Optional
+    "write_container": true // Optional
+  }, // Optional
+  "turn": {
+    "user_message": "Remember that I prefer pytest over unittest.", // Required
+    "assistant_response": "Understood. I will keep that in mind." // Required
+  }, // Required
+  "metadata": {
+    "app": "example-host", // Optional
+    "source": "chat" // Optional
+  } // Optional
+}
+```
+
+```bash
+curl -X POST http://localhost:8000/v1/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "containers": [{"id": "thread-abc", "type": "thread"}],
+    "scope_policy": {
+      "write_user": "auto",
+      "write_global": "auto",
+      "write_container": true
+    },
+    "turn": {
+      "user_message": "Remember that I prefer pytest over unittest.",
+      "assistant_response": "Understood. I will keep that in mind."
+    },
+    "metadata": {
+      "app": "example-host",
+      "source": "chat"
+    }
+  }'
+```
+
+Then request pre-turn context:
+
+```jsonc
+{
+  "user_id": "user-123", // Required
+  "message": "Help me improve the test setup.", // Required
+  "containers": [
+    {
+      "id": "thread-abc", // Required when a container is supplied
+      "type": "thread" // Optional: informational container type
+    }
+  ], // Optional
+  "scope_level": "user_global_container", // Optional: defaults to "user_global"
+  "read_mode": "balanced" // Optional: defaults to "balanced"
+}
+```
+
+```bash
+curl -X POST http://localhost:8000/v1/context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "message": "Help me improve the test setup.",
+    "containers": [{"id": "thread-abc", "type": "thread"}],
+    "scope_level": "user_global_container",
+    "read_mode": "balanced"
+  }'
+```
+
+Ask a deep-memory question:
+
+```jsonc
+{
+  "user_id": "user-123", // Required
+  "query": "What testing framework does this user prefer?", // Required
+  "containers": [
+    {
+      "id": "thread-abc", // Required when a container is supplied
+      "type": "thread" // Optional: informational container type
+    }
+  ], // Optional
+  "scope_level": "user_global_container", // Optional: defaults to "user_global"
+  "read_mode": "deep" // Optional: defaults to "balanced"
+}
+```
+
+```bash
+curl -X POST http://localhost:8000/v1/deep-memory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "query": "What testing framework does this user prefer?",
+    "containers": [{"id": "thread-abc", "type": "thread"}],
+    "scope_level": "user_global_container",
+    "read_mode": "deep"
+  }'
+```
+
+Fetch the latest snapshot for a user:
+
+```text
+GET /v1/snapshot/user-123  // Required path parameter: user_id
+```
+
+```bash
+curl http://localhost:8000/v1/snapshot/user-123
+```
+
+If you query for something unrelated to stored memory, the read endpoints now return a strict zero-result style abstention instead of surfacing unrelated scoped memories in diagnostics.
+
+## Running without Docker
+
+You can also run the components directly:
+
+```bash
+python3 -m pip install -e ".[dev]"
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+celery -A app.workers.queue.celery_app worker --loglevel=INFO
+celery -A app.workers.queue.celery_app beat --loglevel=INFO
+```
+
+You still need reachable Postgres, Redis, and Neo4j instances.

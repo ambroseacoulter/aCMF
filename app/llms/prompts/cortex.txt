@@ -1,0 +1,2 @@
+This prompt has been superseded.
+Use `cortex_review.txt` for proposal review tool loops and `cortex_summary.txt` for final snapshot summarization.
