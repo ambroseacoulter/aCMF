@@ -5,7 +5,8 @@
 <p align="center">
   <a href="https://github.com/ambroseacoulter/aCMF/blob/main/LICENSE"><img alt="Licence Badge" src="https://img.shields.io/badge/LICENCE-GPLv3-brightgreen?style=for-the-badge"></a>
   <a href="https://ecmf.mintlify.app"><img alt="Documentation Badge" src="https://img.shields.io/badge/DOCS-aCMF%20DOCUMENTATION-yellow?style=for-the-badge"></a>
-  <a href="https://developers.openai.com/api/docs/models"><img alt="Recommended Models Badge" src="https://img.shields.io/badge/RECOMMENDED_MODELS-OPENAI-black?style=for-the-badge&logo=openai"></a>
+  <a href="https://developers.openai.com/api/docs/models"><img alt="Recommended Models Badge" src="https://img.shields.io/badge/RECOMMENDED_MODELS-OPENAI-black?style=for-the-badge"></a>
+  <a href="https://ecmf.mintlify.app/quickstart"><img alt="Quickstart Badge" src="<img alt="Static Badge" src="https://img.shields.io/badge/docs-QUICKSTART-purple?style=for-the-badge">"></a>
 </p>
 
 # aCMF
@@ -132,10 +133,10 @@ Celery beat schedules two recurring jobs.
 
 Endpoint docs:
 
-- `/v1/process`: [reference/process.mdx](/placeholder)
-- `/v1/context`: [reference/context.mdx](/placeholder)
-- `/v1/deep-memory`: [reference/deep-memory.mdx](/placeholder)
-- `/v1/snapshot/{user_id}`: [reference/snapshot.mdx](/placeholder)
+- `/v1/process`: [Process](https://ecmf.mintlify.app/reference/process)
+- `/v1/context`: [Context](https://ecmf.mintlify.app/reference/context)
+- `/v1/deep-memory`: [Deep Memory](https://ecmf.mintlify.app/reference/deep-memory)
+- `/v1/snapshot/{user_id}`: [Snapshot](https://ecmf.mintlify.app/reference/snapshot)
 
 ### `POST /v1/process`
 
@@ -402,7 +403,7 @@ If you switch any role from `stub` to `openai_compatible`, you also need that ro
 
 Full environment reference:
 
-- [guides/environment-reference.mdx](/placeholder)
+- [guides/environment-reference.mdx](https://ecmf.mintlify.app/guides/environment-reference)
 
 ## Recommended models
 
