@@ -18,6 +18,42 @@ It is not an agent framework. Your host application calls aCMF before a turn to 
 - Contradiction and lineage tracking
 - A dedicated graph projection in Neo4j, with PostgreSQL as the canonical store
 
+## Concept
+
+The core claim behind aCMF is that durable memory should be externalized from the primary LLM runtime and governed as its own subsystem, not improvised inside the prompt window or delegated to indiscriminate retrieval.
+
+The host model remains optimized for immediate reasoning and response generation, while memory-specific responsibilities are decomposed into explicit stages: structured adjudication, hybrid persistence, asynchronous consolidation, scheduler-driven retrieval, and compressed state delivery back to the host only when retrieval gates open.
+
+That design addresses the three common failure modes of long-horizon LLM systems:
+
+- prompt-only memory causes context drift and poor scaling
+- retrieval-only memory introduces irrelevant or stale recall under latency pressure
+- write-everything memory retains noise, weakens summaries, and increases attack surface
+
+Instead of treating memory as a flat store, aCMF treats it as a governed lifecycle. Facts are evaluated before persistence, stored with provenance and temporal context, maintained off the synchronous path, and surfaced back to the host as bounded grounded context rather than raw history dumps.
+
+Conceptually, the system follows a five-tier model:
+
+1. `River`
+   - the low-latency working set for active turn handling, task continuity, and immediate host-side state
+   - represented operationally by the host application's active conversation state and the scoped retrieval request it issues to aCMF
+2. `Adjudicator`
+   - the governance layer that decides what graduates into durable memory and how it should be represented
+   - implemented through the async `/v1/process` pipeline and worker orchestration
+   - converts turns into structured memory operations using search-first tool calls, staged writes, provenance capture, and atomic commit validation
+3. `Hybrid Store`
+   - a multi-representation memory substrate spanning semantic recall, temporal/relational structure, and exact canonical state
+   - implemented as canonical PostgreSQL memory tables, pgvector embeddings for semantic recall, and Neo4j as a projection for traversal-heavy graph reads
+   - supports explicit contradiction, lineage, scope, and graph-aware retrieval rather than a single undifferentiated memory format
+4. `Reflective Cortex`
+   - the asynchronous maintenance plane for consolidation, decay, contradiction repair, supersession, and snapshot preparation
+   - implemented as hourly background maintenance
+   - recomputes memory health, proposes decay and duplicate actions, reviews ambiguous changes, and regenerates user/global snapshots off the critical path
+5. `Bulletin`
+   - the compressed delivery layer that returns a small grounded state packet to the host, with deeper evidence only when required
+   - implemented through `/v1/context` and `/v1/deep-memory`
+   - returns either a concise grounded context packet or a deeper evidence-backed response, both subject to strict relevance gating and abstention rules
+
 ## Core model
 
 aCMF stores memory across three scopes:
