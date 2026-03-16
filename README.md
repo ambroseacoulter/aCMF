@@ -6,7 +6,7 @@
   <a href="https://github.com/ambroseacoulter/aCMF/blob/main/LICENSE"><img alt="Licence Badge" src="https://img.shields.io/badge/LICENCE-GPLv3-brightgreen?style=for-the-badge"></a>
   <a href="https://ecmf.mintlify.app"><img alt="Documentation Badge" src="https://img.shields.io/badge/DOCS-aCMF%20DOCUMENTATION-yellow?style=for-the-badge"></a>
   <a href="https://developers.openai.com/api/docs/models"><img alt="Recommended Models Badge" src="https://img.shields.io/badge/RECOMMENDED_MODELS-OPENAI-black?style=for-the-badge"></a>
-  <a href="https://ecmf.mintlify.app/quickstart"><img alt="Quickstart Badge" src="<img alt="Static Badge" src="https://img.shields.io/badge/docs-QUICKSTART-purple?style=for-the-badge">"></a>
+  <a href="https://ecmf.mintlify.app/quickstart"><img alt="Quickstart Badge" src="<img alt="Static Badge" src="https://img.shields.io/badge/docs-QUICKSTART-purple?style=for-the-badge"></a>
 </p>
 
 # aCMF
