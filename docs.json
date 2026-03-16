@@ -5,39 +5,41 @@
   "colors": {
     "primary": "#0F766E"
   },
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "index",
-        "quickstart"
-      ]
-    },
-    {
-      "group": "Architecture",
-      "pages": [
-        "architecture/overview",
-        "architecture/llm-roles",
-        "architecture/memory-lifecycle"
-      ]
-    },
-    {
-      "group": "Guides",
-      "pages": [
-        "guides/environment-reference",
-        "guides/providers",
-        "guides/retrieval-and-scopes",
-        "guides/operations"
-      ]
-    },
-    {
-      "group": "Reference",
-      "pages": [
-        "reference/process",
-        "reference/context",
-        "reference/deep-memory",
-        "reference/snapshot"
-      ]
-    }
-  ]
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "index",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "architecture/overview",
+          "architecture/llm-roles",
+          "architecture/memory-lifecycle"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/environment-reference",
+          "guides/providers",
+          "guides/retrieval-and-scopes",
+          "guides/operations"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/process",
+          "reference/context",
+          "reference/deep-memory",
+          "reference/snapshot"
+        ]
+      }
+    ]
+  }
 }
