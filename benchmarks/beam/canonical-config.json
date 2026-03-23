@@ -1,0 +1,52 @@
+{
+  "dataset": {
+    "repo_commit": "PIN_ME",
+    "chats_directory": "chats",
+    "probing_questions_file": "probing_questions/probing_questions.json",
+    "conversation_file_names": [
+      "chat.json",
+      "messages.json",
+      "conversation.json",
+      "dialogue.json",
+      "dialog.json",
+      "chat_messages.json"
+    ],
+    "supported_tiers": [
+      "100K",
+      "500K",
+      "1M",
+      "10M"
+    ],
+    "tier_aliases": {
+      "128K": "100K"
+    }
+  },
+  "runtime": {
+    "api_base_url": "http://localhost:8000",
+    "request_timeout_seconds": 60.0,
+    "transport_retries": 3,
+    "transport_backoff_seconds": 2.0,
+    "job_poll_interval_seconds": 2.0,
+    "job_timeout_seconds": 1800.0,
+    "max_workers": 10
+  },
+  "export": {
+    "result_filename": "acmf-deep-memory.json",
+    "evaluation_prefix": "evaluation-",
+    "report_filename": "acmf-beam-report.xlsx"
+  },
+  "evaluator": {
+    "evaluation_script": "src/evaluation/run_evaluation.py",
+    "report_script": "src/evaluation/report_results.py",
+    "model_name": "gpt_llm"
+  },
+  "docker": {
+    "image_ref": "acmf:beam-benchmark"
+  },
+  "provider_metadata": {
+    "note": "Populate this section with the exact provider and model configuration used for the published run."
+  },
+  "evaluator_metadata": {
+    "note": "Record the official BEAM judge model/config from the pinned BEAM checkout before publication."
+  }
+}

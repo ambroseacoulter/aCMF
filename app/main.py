@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api.routes.context import router as context_router
 from app.api.routes.deep_memory import router as deep_memory_router
+from app.api.routes.jobs import router as jobs_router
 from app.api.routes.process import router as process_router
 from app.api.routes.snapshot import router as snapshot_router
 from app.core.config import get_settings
@@ -28,6 +29,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="aCMF", version="0.1.0", lifespan=lifespan)
 app.include_router(context_router)
 app.include_router(process_router)
+app.include_router(jobs_router)
 app.include_router(snapshot_router)
 app.include_router(deep_memory_router)
 

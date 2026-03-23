@@ -35,6 +35,9 @@ dev = [
   "pytest-cov>=6.0.0",
 ]
 
+[project.scripts]
+acmf-beam = "app.benchmarks.beam.cli:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 

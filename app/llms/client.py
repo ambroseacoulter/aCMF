@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+import httpx
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from app.core.config import EmbeddingRoleConfig, OpenAICompatibleRoleConfig
+from app.core.config import ChatRoleConfig, EmbeddingRoleConfig
 from app.core.enums import ProviderKind
 
 
@@ -159,7 +160,7 @@ class StubLLMClient:
 class OpenAICompatibleClient:
     """OpenAI-compatible chat client with per-role endpoint and key."""
 
-    def __init__(self, config: OpenAICompatibleRoleConfig) -> None:
+    def __init__(self, config: ChatRoleConfig) -> None:
         self.config = config
         self.client = OpenAI(
             api_key=config.api_key,
@@ -314,10 +315,135 @@ class OpenAICompatibleEmbeddingClient:
         return [item.embedding for item in response.data]
 
 
-def resolve_llm_client(role_name: str, config: OpenAICompatibleRoleConfig) -> LLMClient:
+class AnthropicClient:
+    """Anthropic Messages API client for chat, JSON, and tool loops."""
+
+    def __init__(self, config: ChatRoleConfig) -> None:
+        self.config = config
+        self.client = httpx.Client(
+            base_url=(config.base_url or "https://api.anthropic.com").rstrip("/"),
+            timeout=config.timeout_seconds,
+            headers=self._headers(config),
+        )
+
+    def generate_json(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        schema_name: str,
+    ) -> dict[str, Any]:
+        """Ask Claude for JSON and parse the text response."""
+        response = self._create_message(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            max_tokens=self.config.max_output_tokens,
+        )
+        return OpenAICompatibleClient._parse_json(self._extract_text(response))
+
+    def generate_text(self, *, system_prompt: str, user_prompt: str) -> str:
+        """Ask Claude for a text response."""
+        response = self._create_message(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            max_tokens=self.config.max_output_tokens,
+        )
+        return self._extract_text(response)
+
+    def run_tool_loop(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        tools: list[ToolDefinition],
+        tool_executor: Callable[[str, dict[str, Any]], dict[str, Any]],
+        max_steps: int,
+    ) -> ToolLoopResult:
+        """Run a bounded Anthropic tool loop."""
+        messages: list[dict[str, Any]] = [{"role": "user", "content": user_prompt}]
+        tool_specs = [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": tool.parameters,
+            }
+            for tool in tools
+        ]
+        tool_call_count = 0
+        for _ in range(max_steps):
+            response = self._create_message(
+                system_prompt=system_prompt,
+                messages=messages,
+                max_tokens=self.config.max_output_tokens,
+                tools=tool_specs,
+            )
+            content_blocks = response.get("content", [])
+            tool_uses = [block for block in content_blocks if block.get("type") == "tool_use"]
+            if not tool_uses:
+                return ToolLoopResult(final_content=self._extract_text(response) or "{}", tool_call_count=tool_call_count)
+            messages.append({"role": "assistant", "content": content_blocks})
+            tool_results: list[dict[str, Any]] = []
+            for call in tool_uses:
+                result = tool_executor(str(call["name"]), dict(call.get("input") or {}))
+                tool_call_count += 1
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": call["id"],
+                        "content": json.dumps(result),
+                    }
+                )
+            messages.append({"role": "user", "content": tool_results})
+        raise RuntimeError("LLM tool loop exceeded max_steps")
+
+    def _create_message(
+        self,
+        *,
+        system_prompt: str,
+        messages: list[dict[str, Any]],
+        max_tokens: int,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """POST one request to the Anthropic Messages API."""
+        payload: dict[str, Any] = {
+            "model": self.config.model,
+            "system": system_prompt,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        if tools:
+            payload["tools"] = tools
+        response = self.client.post("/v1/messages", json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    @staticmethod
+    def _headers(config: ChatRoleConfig) -> dict[str, str]:
+        """Build Anthropic request headers."""
+        headers = {
+            "anthropic-version": config.api_version or "2023-06-01",
+            "content-type": "application/json",
+        }
+        if config.api_key:
+            headers["x-api-key"] = config.api_key
+        return headers
+
+    @staticmethod
+    def _extract_text(response: dict[str, Any]) -> str:
+        """Extract text blocks from an Anthropic Messages response."""
+        return "".join(
+            str(block.get("text", ""))
+            for block in response.get("content", [])
+            if block.get("type") == "text"
+        )
+
+
+def resolve_llm_client(role_name: str, config: ChatRoleConfig) -> LLMClient:
     """Resolve a chat client for a role."""
     if config.provider == ProviderKind.STUB:
         return StubLLMClient(role_name)
+    if config.provider == ProviderKind.ANTHROPIC:
+        return AnthropicClient(config)
     return OpenAICompatibleClient(config)
 
 

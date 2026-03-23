@@ -28,7 +28,8 @@
           "guides/environment-reference",
           "guides/providers",
           "guides/retrieval-and-scopes",
-          "guides/operations"
+          "guides/operations",
+          "guides/beam-benchmark"
         ]
       },
       {
@@ -37,6 +38,7 @@
           "reference/process",
           "reference/context",
           "reference/deep-memory",
+          "reference/jobs",
           "reference/snapshot"
         ]
       }

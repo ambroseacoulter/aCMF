@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.enums import ProviderKind
 
 
-class OpenAICompatibleRoleConfig(BaseModel):
+class ChatRoleConfig(BaseModel):
     """Resolved provider configuration for a chat-completion role."""
 
     provider: ProviderKind
@@ -19,6 +19,8 @@ class OpenAICompatibleRoleConfig(BaseModel):
     api_key: str | None = None
     model: str
     timeout_seconds: float = 30.0
+    max_output_tokens: int = 2048
+    api_version: str | None = None
 
 
 class EmbeddingRoleConfig(BaseModel):
@@ -35,9 +37,9 @@ class EmbeddingRoleConfig(BaseModel):
 class ResolvedProviderMatrix(BaseModel):
     """Resolved provider matrix for all role clients."""
 
-    adjudicator: OpenAICompatibleRoleConfig
-    context_enhancer: OpenAICompatibleRoleConfig
-    cortex: OpenAICompatibleRoleConfig
+    adjudicator: ChatRoleConfig
+    context_enhancer: ChatRoleConfig
+    cortex: ChatRoleConfig
     embedding: EmbeddingRoleConfig
 
 
@@ -62,24 +64,31 @@ class Settings(BaseSettings):
     openai_default_base_url: str | None = "https://api.openai.com/v1"
     openai_default_api_key: str | None = None
     openai_default_timeout_seconds: float = 30.0
+    anthropic_default_base_url: str | None = "https://api.anthropic.com"
+    anthropic_default_api_key: str | None = None
+    anthropic_default_timeout_seconds: float = 30.0
+    anthropic_default_version: str = "2023-06-01"
 
     adjudicator_provider: ProviderKind | str = ProviderKind.OPENAI_COMPATIBLE
     adjudicator_base_url: str | None = None
     adjudicator_api_key: str | None = None
     adjudicator_model: str = "gpt-4.1-mini"
     adjudicator_timeout_seconds: float | None = None
+    adjudicator_max_output_tokens: int = 2048
 
     context_enhancer_provider: ProviderKind | str = ProviderKind.OPENAI_COMPATIBLE
     context_enhancer_base_url: str | None = None
     context_enhancer_api_key: str | None = None
     context_enhancer_model: str = "gpt-4.1-mini"
     context_enhancer_timeout_seconds: float | None = None
+    context_enhancer_max_output_tokens: int = 1024
 
     cortex_provider: ProviderKind | str = ProviderKind.OPENAI_COMPATIBLE
     cortex_base_url: str | None = None
     cortex_api_key: str | None = None
     cortex_model: str = "gpt-4.1-mini"
     cortex_timeout_seconds: float | None = None
+    cortex_max_output_tokens: int = 2048
 
     embedding_provider: ProviderKind | str = ProviderKind.OPENAI_COMPATIBLE
     embedding_base_url: str | None = None
@@ -133,20 +142,41 @@ class Settings(BaseSettings):
             return ProviderKind.STUB
         return ProviderKind.OPENAI_COMPATIBLE
 
-    def _resolve_chat_role(self, prefix: str, fallback_model: str) -> OpenAICompatibleRoleConfig:
+    def _provider_defaults(self, provider: ProviderKind) -> tuple[str | None, str | None, float, str | None]:
+        """Return provider-specific defaults for base URL, auth, timeout, and API version."""
+        if provider == ProviderKind.ANTHROPIC:
+            return (
+                self.anthropic_default_base_url,
+                self.anthropic_default_api_key,
+                self.anthropic_default_timeout_seconds,
+                self.anthropic_default_version,
+            )
+        return (
+            self.openai_default_base_url,
+            self.openai_default_api_key,
+            self.openai_default_timeout_seconds,
+            None,
+        )
+
+    def _resolve_chat_role(self, prefix: str, fallback_model: str) -> ChatRoleConfig:
         """Resolve one chat role configuration."""
         provider = self._resolve_provider(getattr(self, "{0}_provider".format(prefix)) or self._default_provider())
-        return OpenAICompatibleRoleConfig(
+        default_base_url, default_api_key, default_timeout_seconds, api_version = self._provider_defaults(provider)
+        return ChatRoleConfig(
             provider=provider,
-            base_url=getattr(self, "{0}_base_url".format(prefix)) or self.openai_default_base_url,
-            api_key=getattr(self, "{0}_api_key".format(prefix)) or self.openai_default_api_key,
+            base_url=getattr(self, "{0}_base_url".format(prefix)) or default_base_url,
+            api_key=getattr(self, "{0}_api_key".format(prefix)) or default_api_key,
             model=getattr(self, "{0}_model".format(prefix)) or fallback_model,
-            timeout_seconds=getattr(self, "{0}_timeout_seconds".format(prefix)) or self.openai_default_timeout_seconds,
+            timeout_seconds=getattr(self, "{0}_timeout_seconds".format(prefix)) or default_timeout_seconds,
+            max_output_tokens=getattr(self, "{0}_max_output_tokens".format(prefix)),
+            api_version=api_version,
         )
 
     def resolve_provider_matrix(self) -> ResolvedProviderMatrix:
         """Resolve the provider matrix used by dependency assembly."""
         embedding_provider = self._resolve_provider(self.embedding_provider or self._default_provider())
+        if embedding_provider == ProviderKind.ANTHROPIC:
+            raise ValueError("Anthropic does not provide embeddings for aCMF; use openai_compatible or stub.")
         return ResolvedProviderMatrix(
             adjudicator=self._resolve_chat_role("adjudicator", self.adjudicator_model),
             context_enhancer=self._resolve_chat_role("context_enhancer", self.context_enhancer_model),

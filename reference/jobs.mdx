@@ -1,0 +1,41 @@
+---
+title: Jobs
+description: Read the status of background process jobs.
+---
+
+# Jobs
+
+## `GET /v1/jobs/{job_id}`
+
+Returns the current state of a queued background job.
+
+This endpoint is intended for deterministic external orchestration, including benchmark harnesses that must wait for `/v1/process` work to finish before continuing.
+
+Example response:
+
+```json
+{
+  "job_id": "3d8581a7-f102-4f45-8a77-fdcb16022c50",
+  "job_type": "process_turn",
+  "user_id": "user-123",
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2026-03-16T00:00:00Z",
+  "updated_at": "2026-03-16T00:00:05Z",
+  "result_notes": {
+    "turn_record_id": "cb9f81ad-0c8c-4f22-83c5-fcc18e9046bf",
+    "tool_call_count": 4,
+    "staged_operation_count": 2,
+    "memory_count_after": 18
+  }
+}
+```
+
+Possible `status` values:
+
+- `pending`
+- `running`
+- `succeeded`
+- `failed`
+
+If the job does not exist, the endpoint returns `404`.

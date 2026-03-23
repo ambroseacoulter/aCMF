@@ -435,7 +435,7 @@ If you are configuring the app manually, the minimum runtime variables are:
 - `ACMF_NEO4J_USERNAME`
 - `ACMF_NEO4J_PASSWORD`
 
-If you switch any role from `stub` to `openai_compatible`, you also need that role's API credentials and model configuration, either through role-specific vars or the shared OpenAI-compatible defaults.
+If you switch a chat role from `stub` to `openai_compatible` or `anthropic`, you also need that role's API credentials and model configuration, either through role-specific vars or the matching shared provider defaults. Embeddings still need `openai_compatible` or `stub`.
 
 Full environment reference:
 
@@ -443,18 +443,19 @@ Full environment reference:
 
 ## Recommended models
 
-Recommended OpenAI-compatible model choices by role:
+Recommended model choices by role:
 
 | Role | Recommended models |
 | --- | --- |
-| Adjudicator | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
-| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `inception/mercury-2` for fast token speed |
-| Cortex | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Adjudicator | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `claude-sonnet-4-6` |
+| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, `inception/mercury-2`, or `claude-sonnet-4-6` |
+| Cortex | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `claude-sonnet-4-6` |
 | Embedding | `openai/text-embedding-3-large` or `openai/text-embedding-3-small` |
 
 Recommended starting point:
 
 - use `openai/gpt-5.4` for adjudicator, context enhancer, and cortex if you want one consistent default
+- use `claude-sonnet-4-6` for adjudicator, context enhancer, and cortex if you want a Claude-first setup
 - use `inception/mercury-2` specifically for context enhancement if latency and token speed matter more than consistency
 - use `openai/text-embedding-3-large` for higher-quality retrieval, or `openai/text-embedding-3-small` for lower cost and smaller vectors
 

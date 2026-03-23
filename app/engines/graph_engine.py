@@ -224,10 +224,10 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
               AND b.user_id = $user_id
               AND r.user_id = $user_id
               AND (
-                $query = '' OR
-                toLower(coalesce(a.search_text, a.canonical_name, a.summary, a.content, '')) CONTAINS toLower($query) OR
-                toLower(coalesce(r.search_text, r.edge_type, '')) CONTAINS toLower($query) OR
-                toLower(coalesce(b.search_text, b.canonical_name, b.summary, b.content, '')) CONTAINS toLower($query)
+                $search_query = '' OR
+                toLower(coalesce(a.search_text, a.canonical_name, a.summary, a.content, '')) CONTAINS toLower($search_query) OR
+                toLower(coalesce(r.search_text, r.edge_type, '')) CONTAINS toLower($search_query) OR
+                toLower(coalesce(b.search_text, b.canonical_name, b.summary, b.content, '')) CONTAINS toLower($search_query)
               )
             RETURN CASE WHEN a:Entity THEN a.canonical_name ELSE coalesce(a.summary, substring(a.content, 0, 120)) END AS source_name,
                    r.edge_type AS relation_type,
@@ -241,8 +241,8 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
             MATCH (m:Memory)
             WHERE m.user_id = $user_id
               AND (
-                $query = '' OR
-                toLower(coalesce(m.search_text, m.summary, m.content, '')) CONTAINS toLower($query)
+                $search_query = '' OR
+                toLower(coalesce(m.search_text, m.summary, m.content, '')) CONTAINS toLower($search_query)
               )
             RETURN m.id AS memory_id
             LIMIT $limit
@@ -255,10 +255,10 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
             MATCH (seed)-[r]-(neighbor)
             WHERE neighbor.user_id = $user_id
               AND (
-                $query = '' OR
-                toLower(coalesce(seed.search_text, seed.summary, seed.content, '')) CONTAINS toLower($query) OR
-                toLower(coalesce(r.search_text, r.edge_type, r.relation_type, r.link_type, '')) CONTAINS toLower($query) OR
-                toLower(coalesce(neighbor.search_text, neighbor.canonical_name, neighbor.summary, neighbor.content, '')) CONTAINS toLower($query)
+                $search_query = '' OR
+                toLower(coalesce(seed.search_text, seed.summary, seed.content, '')) CONTAINS toLower($search_query) OR
+                toLower(coalesce(r.search_text, r.edge_type, r.relation_type, r.link_type, '')) CONTAINS toLower($search_query) OR
+                toLower(coalesce(neighbor.search_text, neighbor.canonical_name, neighbor.summary, neighbor.content, '')) CONTAINS toLower($search_query)
               )
             RETURN coalesce(seed.summary, substring(seed.content, 0, 120)) AS source_name,
                    coalesce(r.edge_type, r.relation_type, r.link_type, type(r)) AS relation_type,
@@ -275,9 +275,9 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
             MATCH (seed)-[r]-(neighbor:Memory)
             WHERE neighbor.user_id = $user_id
               AND (
-                $query = '' OR
-                toLower(coalesce(neighbor.search_text, neighbor.summary, neighbor.content, '')) CONTAINS toLower($query) OR
-                toLower(coalesce(r.search_text, r.edge_type, r.relation_type, r.link_type, '')) CONTAINS toLower($query)
+                $search_query = '' OR
+                toLower(coalesce(neighbor.search_text, neighbor.summary, neighbor.content, '')) CONTAINS toLower($search_query) OR
+                toLower(coalesce(r.search_text, r.edge_type, r.relation_type, r.link_type, '')) CONTAINS toLower($search_query)
               )
             RETURN DISTINCT neighbor.id AS memory_id
             LIMIT $limit
@@ -288,7 +288,7 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
             result = session.run(
                 edge_cypher,
                 user_id=user_id,
-                query=query,
+                search_query=query,
                 limit=limit,
                 seed_memory_ids=seed_memory_ids or [],
             )
@@ -308,7 +308,7 @@ class Neo4jGraphClient(GraphProjectionClient, GraphQueryClient):
             memory_result = session.run(
                 memory_cypher,
                 user_id=user_id,
-                query=query,
+                search_query=query,
                 limit=limit,
                 seed_memory_ids=seed_memory_ids or [],
             )

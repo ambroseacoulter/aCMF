@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from app.core.config import Settings
+from app.core.config import ChatRoleConfig, Settings
 from app.core.enums import ProviderKind, ScopeLevel
 from app.db import runtime_migrations
 from app.engines.graph_engine import Neo4jGraphClient
+from app.llms import client as llm_client_module
+from app.llms.client import AnthropicClient, ToolDefinition, load_prompt
 from app.llms.context_enhancer import ContextEnhancementPayload, DeepMemoryPayload
-from app.llms.client import load_prompt
 from app.retrieval.scope_resolver import ScopeResolver
 from app.services.relevance_service import RelevanceService
 from app.services.scoring_service import ScoringService
@@ -103,6 +104,218 @@ def test_provider_matrix_resolves_role_overrides() -> None:
     assert matrix.adjudicator.model == "judge-model"
     assert matrix.context_enhancer.provider == ProviderKind.STUB
     assert matrix.embedding.base_url == "https://default.example/v1"
+
+
+def test_provider_matrix_resolves_anthropic_defaults() -> None:
+    settings = Settings(
+        _env_file=None,
+        env="development",
+        anthropic_default_base_url="https://claude.example",
+        anthropic_default_api_key="anth-key",
+        anthropic_default_timeout_seconds=45.0,
+        anthropic_default_version="2023-06-01",
+        adjudicator_provider=ProviderKind.ANTHROPIC,
+        adjudicator_model="claude-sonnet-4-5",
+        adjudicator_max_output_tokens=4096,
+    )
+
+    matrix = settings.resolve_provider_matrix()
+
+    assert matrix.adjudicator.provider == ProviderKind.ANTHROPIC
+    assert matrix.adjudicator.base_url == "https://claude.example"
+    assert matrix.adjudicator.api_key == "anth-key"
+    assert matrix.adjudicator.timeout_seconds == 45.0
+    assert matrix.adjudicator.api_version == "2023-06-01"
+    assert matrix.adjudicator.max_output_tokens == 4096
+
+
+def test_provider_matrix_rejects_anthropic_embeddings() -> None:
+    settings = Settings(
+        _env_file=None,
+        env="development",
+        embedding_provider=ProviderKind.ANTHROPIC,
+    )
+
+    try:
+        settings.resolve_provider_matrix()
+    except ValueError as exc:
+        assert "Anthropic does not provide embeddings" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("Expected anthropic embeddings to be rejected")
+
+
+def test_anthropic_client_generate_json_posts_messages_request(monkeypatch) -> None:
+    instances: list[FakeAnthropicHTTPClient] = []
+
+    class FakeAnthropicResponse:
+        def __init__(self, payload: dict) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self.payload
+
+    class FakeAnthropicHTTPClient:
+        def __init__(self, *args, **kwargs) -> None:
+            self.kwargs = kwargs
+            self.calls: list[dict] = []
+            self.responses = [
+                {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "```json\n{\"summary\":\"ready\",\"health_note\":null}\n```",
+                        }
+                    ]
+                }
+            ]
+            instances.append(self)
+
+        def post(self, path: str, json: dict) -> FakeAnthropicResponse:
+            self.calls.append({"path": path, "json": json})
+            return FakeAnthropicResponse(self.responses.pop(0))
+
+    monkeypatch.setattr(llm_client_module.httpx, "Client", FakeAnthropicHTTPClient)
+    client = AnthropicClient(
+        ChatRoleConfig(
+            provider=ProviderKind.ANTHROPIC,
+            base_url="https://claude.example",
+            api_key="anth-key",
+            model="claude-sonnet-4-5",
+            timeout_seconds=12.0,
+            max_output_tokens=333,
+            api_version="2023-06-01",
+        )
+    )
+
+    payload = client.generate_json(system_prompt="system", user_prompt="user", schema_name="cortex_summary")
+
+    assert payload == {"summary": "ready", "health_note": None}
+    assert len(instances) == 1
+    assert instances[0].kwargs["base_url"] == "https://claude.example"
+    assert instances[0].kwargs["headers"]["x-api-key"] == "anth-key"
+    assert instances[0].kwargs["headers"]["anthropic-version"] == "2023-06-01"
+    assert instances[0].calls == [
+        {
+            "path": "/v1/messages",
+            "json": {
+                "model": "claude-sonnet-4-5",
+                "system": "system",
+                "messages": [{"role": "user", "content": "user"}],
+                "max_tokens": 333,
+            },
+        }
+    ]
+
+
+def test_anthropic_client_tool_loop_round_trips_tool_results(monkeypatch) -> None:
+    instances: list[FakeAnthropicHTTPClient] = []
+
+    class FakeAnthropicResponse:
+        def __init__(self, payload: dict) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return self.payload
+
+    class FakeAnthropicHTTPClient:
+        def __init__(self, *args, **kwargs) -> None:
+            self.kwargs = kwargs
+            self.calls: list[dict] = []
+            self.responses = [
+                {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "toolu_1",
+                            "name": "lookup_memory",
+                            "input": {"query": "pytest"},
+                        }
+                    ]
+                },
+                {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "{\"reasoning_summary\":\"complete\"}",
+                        }
+                    ]
+                },
+            ]
+            instances.append(self)
+
+        def post(self, path: str, json: dict) -> FakeAnthropicResponse:
+            self.calls.append({"path": path, "json": json})
+            return FakeAnthropicResponse(self.responses.pop(0))
+
+    monkeypatch.setattr(llm_client_module.httpx, "Client", FakeAnthropicHTTPClient)
+    client = AnthropicClient(
+        ChatRoleConfig(
+            provider=ProviderKind.ANTHROPIC,
+            base_url="https://claude.example",
+            api_key="anth-key",
+            model="claude-sonnet-4-5",
+            timeout_seconds=12.0,
+            max_output_tokens=333,
+            api_version="2023-06-01",
+        )
+    )
+    tool_calls: list[tuple[str, dict[str, object]]] = []
+
+    result = client.run_tool_loop(
+        system_prompt="system",
+        user_prompt="user",
+        tools=[
+            ToolDefinition(
+                name="lookup_memory",
+                description="Lookup one memory",
+                parameters={"type": "object", "properties": {"query": {"type": "string"}}},
+            )
+        ],
+        tool_executor=lambda name, arguments: tool_calls.append((name, arguments)) or {"result": "ok"},
+        max_steps=3,
+    )
+
+    assert result.final_content == "{\"reasoning_summary\":\"complete\"}"
+    assert result.tool_call_count == 1
+    assert tool_calls == [("lookup_memory", {"query": "pytest"})]
+    assert len(instances) == 1
+    assert instances[0].calls[0]["json"]["tools"] == [
+        {
+            "name": "lookup_memory",
+            "description": "Lookup one memory",
+            "input_schema": {"type": "object", "properties": {"query": {"type": "string"}}},
+        }
+    ]
+    assert instances[0].calls[1]["json"]["messages"] == [
+        {"role": "user", "content": "user"},
+        {
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_1",
+                    "name": "lookup_memory",
+                    "input": {"query": "pytest"},
+                }
+            ],
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": "toolu_1",
+                    "content": "{\"result\": \"ok\"}",
+                }
+            ],
+        },
+    ]
 
 
 def test_prompt_loader_inlines_shared_sections() -> None:

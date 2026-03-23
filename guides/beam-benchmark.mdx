@@ -1,0 +1,132 @@
+---
+title: BEAM Benchmark
+description: Run aCMF in Docker and evaluate it against the BEAM memory benchmark from the terminal.
+---
+
+# BEAM Benchmark
+
+This guide runs the benchmark in two parts:
+
+- `aCMF` runs in Docker and exposes a real HTTP API
+- the BEAM harness runs from your terminal and talks to that API
+
+The canonical `aCMF` benchmark path uses:
+
+- `POST /v1/process` for ingestion
+- `GET /v1/jobs/{job_id}` for deterministic completion checks
+- `POST /v1/deep-memory` for probing-question answers
+
+## 1. Prepare the benchmark environment
+
+Create a dedicated benchmark environment file:
+
+```bash
+cp .env.benchmark.example .env.benchmark
+```
+
+Populate the provider and model settings with the exact values you will publish.
+
+## 2. Build and run the Dockerized aCMF stack
+
+Build the benchmark-tagged image:
+
+```bash
+docker build -t acmf:beam-benchmark .
+```
+
+Start the benchmark stack without `beat`:
+
+```bash
+docker compose -f docker-compose.benchmark.yml up --build
+```
+
+This starts:
+
+- `api`
+- `worker`
+- `postgres`
+- `redis`
+- `neo4j`
+
+Wait for the API to become healthy:
+
+```bash
+curl http://localhost:8000/health
+```
+
+## 3. Run the terminal harness
+
+The harness is a normal CLI and does not run inside Docker.
+
+Benchmark config:
+
+- checked in at `benchmarks/beam/canonical-config.json`
+- records the pinned dataset/evaluator layout, output naming, and runtime defaults
+
+Run one tier:
+
+```bash
+acmf-beam run \
+  --beam-root /path/to/BEAM \
+  --tier 100K \
+  --output-dir /tmp/acmf-beam-artifacts \
+  --run-id run-001 \
+  --image-ref acmf:beam-benchmark
+```
+
+Important request behavior:
+
+- writes are user-only: `write_user=true`, `write_global=false`, `write_container=false`
+- reads use `scope_level=user` and `read_mode=deep`
+- one unique `user_id` is generated per BEAM chat
+
+Artifacts are written under:
+
+```text
+<output-dir>/<run-id>/
+```
+
+Key outputs include:
+
+- `results/<tier>/<chat-index>/acmf-deep-memory.json`
+- `results/<tier>/<chat-index>/process-acks.json`
+- `results/<tier>/<chat-index>/job-status-history.json`
+- `results/<tier>/<chat-index>/deep-memory-responses.json`
+- `manifests/<tier>.json`
+- `failures/<tier>.json`
+
+## 4. Run the official BEAM evaluator
+
+After the harness exports answers, run the pinned BEAM evaluator:
+
+```bash
+acmf-beam evaluate \
+  --beam-root /path/to/BEAM \
+  --tier 100K \
+  --output-dir /tmp/acmf-beam-artifacts \
+  --run-id run-001
+```
+
+This wraps the official BEAM evaluation script configured in `benchmarks/beam/canonical-config.json`.
+
+To export the BEAM report:
+
+```bash
+acmf-beam report \
+  --beam-root /path/to/BEAM \
+  --tier 100K \
+  --output-dir /tmp/acmf-beam-artifacts \
+  --run-id run-001
+```
+
+## 5. Publishing checklist
+
+Before publishing results, confirm that the manifest records:
+
+- the pinned BEAM commit
+- the `aCMF` git commit
+- the Docker image tag or digest used for the API runtime
+- the exact provider/model configuration used for `aCMF`
+- the evaluator configuration used by the pinned BEAM checkout
+
+For reproducibility, archive the full run directory rather than only the final scores.

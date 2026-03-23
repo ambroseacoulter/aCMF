@@ -39,41 +39,55 @@ These are fallback values for any role that does not define its own override.
 | `ACMF_OPENAI_DEFAULT_API_KEY` | Default API key fallback for any role using `openai_compatible`. | Required if any role uses `openai_compatible` and does not override its own API key | empty |
 | `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` | Default request timeout fallback for OpenAI-compatible roles. | Optional | `30` |
 
+## Global Anthropic defaults
+
+These are fallback values for any chat role that uses `anthropic`.
+
+| Variable | What it does | Required | Default |
+| --- | --- | --- | --- |
+| `ACMF_ANTHROPIC_DEFAULT_BASE_URL` | Default base URL for Anthropic chat roles. | Required if any chat role uses `anthropic` and does not override its own base URL | `https://api.anthropic.com` |
+| `ACMF_ANTHROPIC_DEFAULT_API_KEY` | Default API key fallback for any chat role using `anthropic`. | Required if any chat role uses `anthropic` and does not override its own API key | empty |
+| `ACMF_ANTHROPIC_DEFAULT_TIMEOUT_SECONDS` | Default request timeout fallback for Anthropic chat roles. | Optional | `30` |
+| `ACMF_ANTHROPIC_DEFAULT_VERSION` | Anthropic API version header sent with Claude Messages API requests. | Optional | `2023-06-01` |
+
 ## Adjudicator role
 
 | Variable | What it does | Required | Default |
 | --- | --- | --- | --- |
-| `ACMF_ADJUDICATOR_PROVIDER` | Provider kind for post-turn adjudication. `stub` or `openai_compatible`. | Optional | `stub` in `.env.example`, app default is `openai_compatible` outside tests |
-| `ACMF_ADJUDICATOR_BASE_URL` | Role-specific override for the adjudicator base URL. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` and no global default base URL is set | empty |
-| `ACMF_ADJUDICATOR_API_KEY` | Role-specific override for adjudicator credentials. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` and no global default API key is set | empty |
-| `ACMF_ADJUDICATOR_MODEL` | Model name used by the adjudicator role. | Required if `ACMF_ADJUDICATOR_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
-| `ACMF_ADJUDICATOR_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+| `ACMF_ADJUDICATOR_PROVIDER` | Provider kind for post-turn adjudication. `stub`, `openai_compatible`, or `anthropic`. | Optional | `stub` in `.env.example`, app default is `openai_compatible` outside tests |
+| `ACMF_ADJUDICATOR_BASE_URL` | Role-specific override for the adjudicator base URL. | Required if the chosen provider has no matching global default base URL set | empty |
+| `ACMF_ADJUDICATOR_API_KEY` | Role-specific override for adjudicator credentials. | Required if the chosen provider has no matching global default API key set | empty |
+| `ACMF_ADJUDICATOR_MODEL` | Model name used by the adjudicator role. | Required if provider is not `stub` | `gpt-4.1-mini` |
+| `ACMF_ADJUDICATOR_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits the chosen provider's default timeout |
+| `ACMF_ADJUDICATOR_MAX_OUTPUT_TOKENS` | Per-call output cap used by Anthropic chat requests for this role. | Optional | `2048` |
 
 ## Context Enhancer role
 
 | Variable | What it does | Required | Default |
 | --- | --- | --- | --- |
 | `ACMF_CONTEXT_ENHANCER_PROVIDER` | Provider kind for `/v1/context` and `/v1/deep-memory` synthesis. | Optional | `stub` in `.env.example` |
-| `ACMF_CONTEXT_ENHANCER_BASE_URL` | Role-specific override for context enhancement requests. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` and no global default base URL is set | empty |
-| `ACMF_CONTEXT_ENHANCER_API_KEY` | Role-specific override for context enhancement credentials. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` and no global default API key is set | empty |
-| `ACMF_CONTEXT_ENHANCER_MODEL` | Model name used for context and deep-memory synthesis. | Required if `ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
-| `ACMF_CONTEXT_ENHANCER_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+| `ACMF_CONTEXT_ENHANCER_BASE_URL` | Role-specific override for context enhancement requests. | Required if the chosen provider has no matching global default base URL set | empty |
+| `ACMF_CONTEXT_ENHANCER_API_KEY` | Role-specific override for context enhancement credentials. | Required if the chosen provider has no matching global default API key set | empty |
+| `ACMF_CONTEXT_ENHANCER_MODEL` | Model name used for context and deep-memory synthesis. | Required if provider is not `stub` | `gpt-4.1-mini` |
+| `ACMF_CONTEXT_ENHANCER_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits the chosen provider's default timeout |
+| `ACMF_CONTEXT_ENHANCER_MAX_OUTPUT_TOKENS` | Per-call output cap used by Anthropic chat requests for this role. | Optional | `1024` |
 
 ## Cortex role
 
 | Variable | What it does | Required | Default |
 | --- | --- | --- | --- |
 | `ACMF_CORTEX_PROVIDER` | Provider kind for Cortex review and snapshot summarization. | Optional | `stub` in `.env.example` |
-| `ACMF_CORTEX_BASE_URL` | Role-specific override for Cortex requests. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` and no global default base URL is set | empty |
-| `ACMF_CORTEX_API_KEY` | Role-specific override for Cortex credentials. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` and no global default API key is set | empty |
-| `ACMF_CORTEX_MODEL` | Model name used by the Cortex role. | Required if `ACMF_CORTEX_PROVIDER=openai_compatible` | `gpt-4.1-mini` |
-| `ACMF_CORTEX_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits `ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS` |
+| `ACMF_CORTEX_BASE_URL` | Role-specific override for Cortex requests. | Required if the chosen provider has no matching global default base URL set | empty |
+| `ACMF_CORTEX_API_KEY` | Role-specific override for Cortex credentials. | Required if the chosen provider has no matching global default API key set | empty |
+| `ACMF_CORTEX_MODEL` | Model name used by the Cortex role. | Required if provider is not `stub` | `gpt-4.1-mini` |
+| `ACMF_CORTEX_TIMEOUT_SECONDS` | Role-specific request timeout override. | Optional | inherits the chosen provider's default timeout |
+| `ACMF_CORTEX_MAX_OUTPUT_TOKENS` | Per-call output cap used by Anthropic chat requests for this role. | Optional | `2048` |
 
 ## Embeddings role
 
 | Variable | What it does | Required | Default |
 | --- | --- | --- | --- |
-| `ACMF_EMBEDDING_PROVIDER` | Provider kind for embedding generation. | Optional | `stub` in `.env.example` |
+| `ACMF_EMBEDDING_PROVIDER` | Provider kind for embedding generation. `anthropic` is not supported here. | Optional | `stub` in `.env.example` |
 | `ACMF_EMBEDDING_BASE_URL` | Role-specific override for embedding requests. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` and no global default base URL is set | empty |
 | `ACMF_EMBEDDING_API_KEY` | Role-specific override for embedding credentials. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` and no global default API key is set | empty |
 | `ACMF_EMBEDDING_MODEL` | Embedding model name. | Required if `ACMF_EMBEDDING_PROVIDER=openai_compatible` | `text-embedding-3-small` |
@@ -114,8 +128,9 @@ These are fallback values for any role that does not define its own override.
   - keep all provider vars on `stub`
   - keep Docker service URLs from `.env.example`
 - Real model providers:
-  - set each `*_PROVIDER=openai_compatible`
-  - supply either the role-specific `BASE_URL` and `API_KEY`, or the shared global defaults
+  - set each chat role to `openai_compatible` or `anthropic`
+  - keep embeddings on `openai_compatible` or `stub`
+  - supply either the role-specific `BASE_URL` and `API_KEY`, or the matching shared global defaults
 - If you change `.env`, recreate the affected containers:
 
 ```bash

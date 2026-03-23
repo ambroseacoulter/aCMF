@@ -38,6 +38,44 @@ class FakeDriver:
         return self.session_instance
 
 
+class FakeTraverseSession:
+    """Neo4j session stub for traversal tests."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    def run(self, query: str, **kwargs):
+        self.calls.append((query, kwargs))
+        if "RETURN m.id AS memory_id" in query or "RETURN DISTINCT neighbor.id AS memory_id" in query:
+            return [{"memory_id": "mem-1"}]
+        return [
+            {
+                "source_name": "memory source",
+                "relation_type": "RELATED_TO",
+                "target_name": "neighbor entity",
+                "confidence": 0.75,
+                "source_memory_id": "mem-1",
+                "target_memory_id": None,
+            }
+        ]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+
+class FakeTraverseDriver:
+    """Driver stub for traversal tests."""
+
+    def __init__(self) -> None:
+        self.session_instance = FakeTraverseSession()
+
+    def session(self) -> FakeTraverseSession:
+        return self.session_instance
+
+
 class FakeProjectionClient:
     """Projection client stub with optional failure modes."""
 
@@ -239,3 +277,20 @@ def test_neo4j_memory_link_projection_uses_valid_with_clauses(monkeypatch) -> No
     assert "WITH link, m, e" in query
     assert "MERGE (m)-[r:MENTIONS {id: link.id}]->(e)" in query
     assert params["memory_links"][0]["id"] == "link-1"
+
+
+def test_neo4j_traversal_uses_search_query_parameter_without_keyword_collision(monkeypatch) -> None:
+    driver = FakeTraverseDriver()
+    monkeypatch.setattr(graph_engine_module.GraphDatabase, "driver", lambda *args, **kwargs: driver)
+    client = Neo4jGraphClient(Settings(_env_file=None, env="development"))
+
+    result = client.traverse_context("user-1", "pytest", 5, seed_memory_ids=["mem-1"])
+
+    assert result.memory_ids == ["mem-1"]
+    assert len(result.facts) == 1
+    first_query, first_params = driver.session_instance.calls[0]
+    second_query, second_params = driver.session_instance.calls[1]
+    assert "$search_query" in first_query
+    assert "$search_query" in second_query
+    assert first_params["search_query"] == "pytest"
+    assert second_params["search_query"] == "pytest"

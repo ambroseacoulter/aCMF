@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.engines.context_engine import ContextEngine
 from app.engines.cortex_engine import CortexEngine
 from app.engines.graph_engine import GraphEngine, Neo4jGraphClient, StubGraphClient
+from app.engines.job_engine import JobEngine
 from app.engines.process_engine import ProcessEngine
 from app.engines.snapshot_engine import SnapshotEngine
 from app.llms.adjudicator import AdjudicatorLLM
@@ -53,6 +54,11 @@ def build_process_engine(session: Session) -> ProcessEngine:
         container_repo=ContainerRepository(session),
         job_repo=JobRepository(session),
     )
+
+
+def build_job_engine(session: Session) -> JobEngine:
+    """Construct the job engine for a session."""
+    return JobEngine(job_repo=JobRepository(session))
 
 
 def build_snapshot_engine(session: Session) -> SnapshotEngine:

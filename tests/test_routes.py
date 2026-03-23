@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.api.routes import context as context_route
 from app.api.routes import deep_memory as deep_memory_route
+from app.api.routes import jobs as jobs_route
 from app.api.routes import process as process_route
 from app.api.routes import snapshot as snapshot_route
 from app.api.schemas.common import RetrievalDiagnostics
 from app.api.schemas.context import ContextResponse
 from app.api.schemas.deep_memory import DeepMemoryResponse, EvidenceItem
+from app.api.schemas.jobs import JobStatusResponse
 from app.api.schemas.process import ProcessResponse
 from app.api.schemas.snapshot import SnapshotPayload, SnapshotResponse
 from app.core.enums import ReadMode, ScopeLevel
@@ -108,6 +111,29 @@ class FakeSnapshotEngine:
         )
 
 
+class FakeJobEngine:
+    """Fake job engine."""
+
+    def get_job_status(self, job_id: str) -> JobStatusResponse:
+        return JobStatusResponse(
+            job_id=job_id,
+            job_type="process_turn",
+            user_id="user-1",
+            status="succeeded",
+            error_message=None,
+            created_at="2026-03-16T00:00:00Z",
+            updated_at="2026-03-16T00:05:00Z",
+            result_notes={"turn_record_id": "turn-1"},
+        )
+
+
+class MissingJobEngine:
+    """Fake missing job engine."""
+
+    def get_job_status(self, job_id: str) -> JobStatusResponse:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
+
 def override_session():
     """Yield a dummy session."""
     yield DummySession()
@@ -163,6 +189,33 @@ def test_process_route_returns_acceptance() -> None:
     payload = response.json()
     assert payload["status"] == "accepted"
     assert payload["created_containers"] == ["thread-1"]
+    app.dependency_overrides.clear()
+
+
+def test_jobs_route_returns_status_payload() -> None:
+    app.dependency_overrides[jobs_route.get_engine] = lambda: FakeJobEngine()
+    app.dependency_overrides[get_session] = override_session
+    client = TestClient(app)
+
+    response = client.get("/v1/jobs/job-123")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["job_id"] == "job-123"
+    assert payload["status"] == "succeeded"
+    assert payload["result_notes"]["turn_record_id"] == "turn-1"
+    app.dependency_overrides.clear()
+
+
+def test_jobs_route_returns_404_for_missing_job() -> None:
+    app.dependency_overrides[jobs_route.get_engine] = lambda: MissingJobEngine()
+    app.dependency_overrides[get_session] = override_session
+    client = TestClient(app)
+
+    response = client.get("/v1/jobs/missing-job")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found."
     app.dependency_overrides.clear()
 
 

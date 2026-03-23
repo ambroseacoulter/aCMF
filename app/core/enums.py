@@ -118,6 +118,7 @@ class TurnStatus(StrEnum):
 class ProviderKind(StrEnum):
     """Supported provider types."""
 
+    ANTHROPIC = "anthropic"
     OPENAI_COMPATIBLE = "openai_compatible"
     STUB = "stub"
 

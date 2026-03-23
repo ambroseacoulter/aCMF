@@ -1,11 +1,11 @@
 ---
 title: Provider Configuration
-description: Configure OpenAI-compatible providers independently for each aCMF role.
+description: Configure Anthropic, OpenAI-compatible, or stub providers independently for each aCMF role.
 ---
 
 # Provider Configuration
 
-aCMF supports separate OpenAI-compatible providers for:
+aCMF supports separate providers for:
 
 - Adjudicator
 - Context Enhancer
@@ -14,10 +14,13 @@ aCMF supports separate OpenAI-compatible providers for:
 
 ## Provider kinds
 
+- `anthropic`
 - `openai_compatible`
 - `stub`
 
-`stub` is useful for tests and local development. `openai_compatible` expects a standard OpenAI-style API with `base_url`, API key, and model name.
+`stub` is useful for tests and local development. `openai_compatible` expects a standard OpenAI-style API with `base_url`, API key, and model name. `anthropic` uses Claude's Messages API for chat/tool roles.
+
+Anthropic support is currently chat-only in aCMF. Keep `ACMF_EMBEDDING_PROVIDER` on `openai_compatible` or `stub`.
 
 For a complete field-by-field environment reference, including which variables are required and when, see [Environment Reference](/guides/environment-reference).
 
@@ -25,24 +28,26 @@ For a complete field-by-field environment reference, including which variables a
 
 | Role | Recommended models |
 | --- | --- |
-| Adjudicator | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
-| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `inception/mercury-2` for fast token speed |
-| Cortex | `openai/gpt-5.4` or `google/gemini-3.1-flash-lite-preview` |
+| Adjudicator | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `claude-sonnet-4-6` |
+| Context Enhancer | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, `inception/mercury-2`, or `claude-sonnet-4-6` |
+| Cortex | `openai/gpt-5.4`, `google/gemini-3.1-flash-lite-preview`, or `claude-sonnet-4-6` |
 | Embedding | `openai/text-embedding-3-large` or `openai/text-embedding-3-small` |
 
 Recommended starting point:
 
 - use `openai/gpt-5.4` for adjudicator, context enhancer, and cortex if you want one consistent default
+- use `claude-sonnet-4-6` for adjudicator, context enhancer, and cortex if you want a Claude-first setup
 - use `inception/mercury-2` only for the Context Enhancer if you want faster token speed on read-time synthesis
 - use `openai/text-embedding-3-large` when retrieval quality matters most, or `openai/text-embedding-3-small` when cost and vector size matter more
 
 ## Resolution rules
 
-- Each role first reads its own `PROVIDER`, `BASE_URL`, `API_KEY`, `MODEL`, and `TIMEOUT_SECONDS`.
-- If a role does not define `BASE_URL`, `API_KEY`, or `TIMEOUT_SECONDS`, aCMF falls back to the global OpenAI-compatible defaults.
+- Each chat role first reads its own `PROVIDER`, `BASE_URL`, `API_KEY`, `MODEL`, `TIMEOUT_SECONDS`, and `MAX_OUTPUT_TOKENS`.
+- If a role uses `openai_compatible`, aCMF falls back to the global OpenAI-compatible defaults for unset connection fields.
+- If a role uses `anthropic`, aCMF falls back to the global Anthropic defaults for unset connection fields.
 - If a role is set to `stub`, network credentials are not required for that role.
 
-## Global defaults
+## Global OpenAI-compatible defaults
 
 These settings are shared when a role does not define its own override:
 
@@ -50,6 +55,15 @@ These settings are shared when a role does not define its own override:
 ACMF_OPENAI_DEFAULT_BASE_URL=https://api.openai.com/v1
 ACMF_OPENAI_DEFAULT_API_KEY=
 ACMF_OPENAI_DEFAULT_TIMEOUT_SECONDS=30
+```
+
+## Global Anthropic defaults
+
+```env
+ACMF_ANTHROPIC_DEFAULT_BASE_URL=https://api.anthropic.com
+ACMF_ANTHROPIC_DEFAULT_API_KEY=
+ACMF_ANTHROPIC_DEFAULT_TIMEOUT_SECONDS=30
+ACMF_ANTHROPIC_DEFAULT_VERSION=2023-06-01
 ```
 
 ## Adjudicator
@@ -60,6 +74,7 @@ ACMF_ADJUDICATOR_BASE_URL=
 ACMF_ADJUDICATOR_API_KEY=
 ACMF_ADJUDICATOR_MODEL=openai/gpt-5.4
 ACMF_ADJUDICATOR_TIMEOUT_SECONDS=
+ACMF_ADJUDICATOR_MAX_OUTPUT_TOKENS=2048
 ```
 
 ## Context Enhancer
@@ -70,6 +85,7 @@ ACMF_CONTEXT_ENHANCER_BASE_URL=
 ACMF_CONTEXT_ENHANCER_API_KEY=
 ACMF_CONTEXT_ENHANCER_MODEL=openai/gpt-5.4
 ACMF_CONTEXT_ENHANCER_TIMEOUT_SECONDS=
+ACMF_CONTEXT_ENHANCER_MAX_OUTPUT_TOKENS=1024
 ```
 
 ## Cortex
@@ -80,6 +96,7 @@ ACMF_CORTEX_BASE_URL=
 ACMF_CORTEX_API_KEY=
 ACMF_CORTEX_MODEL=openai/gpt-5.4
 ACMF_CORTEX_TIMEOUT_SECONDS=
+ACMF_CORTEX_MAX_OUTPUT_TOKENS=2048
 ```
 
 ## Embeddings
@@ -98,9 +115,10 @@ ACMF_EMBEDDING_TIMEOUT_SECONDS=
 ```env
 ACMF_OPENAI_DEFAULT_BASE_URL=https://api.openai.com/v1
 ACMF_OPENAI_DEFAULT_API_KEY=sk-default
+ACMF_ANTHROPIC_DEFAULT_API_KEY=sk-ant-default
 
-ACMF_ADJUDICATOR_PROVIDER=openai_compatible
-ACMF_ADJUDICATOR_MODEL=openai/gpt-5.4
+ACMF_ADJUDICATOR_PROVIDER=anthropic
+ACMF_ADJUDICATOR_MODEL=claude-sonnet-4-6
 
 ACMF_CONTEXT_ENHANCER_PROVIDER=openai_compatible
 ACMF_CONTEXT_ENHANCER_BASE_URL=https://my-router.example/v1
